@@ -14,6 +14,10 @@ import (
 var RootCmd = &cobra.Command{
 	Use:   "scope",
 	Short: "Cribl AppScope Command Line Interface\n\nAppScope is a general-purpose observable application telemetry system.\n\nRunning `scope` with no subcommands will execute the `scope run` command.",
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Printf("Y U NO WORKEE??")
+		return	checkIncompatibleFlags(getFlags(args))
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

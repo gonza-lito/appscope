@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/criblio/scope/history"
 	"github.com/criblio/scope/run"
@@ -59,4 +60,62 @@ func runCmdFlags(cmd *cobra.Command, rc *run.Config) {
 	cmd.Flags().StringVarP(&rc.LibraryPath, "librarypath", "l", "", "Set path for dynamic libraries")
 	cmd.Flags().StringVarP(&rc.UserConfig, "userconfig", "u", "", "Run ldscope with a user specified config file. Overrides all other settings.")
 	metricAndEventDestFlags(cmd, rc)
+}
+
+/*
+Incompatible flags list, key not present = no icompatibilities, key = nil exclusive flag, key = map incompatible flag list
+--cribldest && --eventdest
+--cribldest && --metricsdest
+--userconfig && (--metricsdest || --eventsdest || --cribldest || --loglevel ....etc)
+--help && [anything else]
+--passthrough && [anything else]
+*/
+var IncompatibleFlags = map[string]map[string]int{
+	"cribldest": {
+		"eventdest":   1,
+		"metricsdest": 1,
+	},
+	"metricsdest": {
+		"cribldest": 1,
+	},
+	"eventdest": {
+		"cribldest": 1,
+	},
+	"userconfig": {
+		"metricsdest": 1,
+		"eventsdest":  1,
+		"cribldest":   1,
+		"loglevel":    1,
+	},
+	"passthrough": nil,
+	"help":        nil,
+}
+
+func checkIncompatibleFlags(flags []string) error {
+	for _, fl := range flags {
+		incompatible, exists := IncompatibleFlags[fl]
+		if !exists {
+			continue
+		}
+		if incompatible == nil {
+			return fmt.Errorf("Flag \"%s\" can't be used with other flags", fl)
+		}
+		for _, nextFl := range flags {
+			_, exist := incompatible[nextFl]
+			if exist {
+				return fmt.Errorf("Flag \"%s\" can't be used with \"%s\"", fl, nextFl)
+			}
+		}
+	}
+	return nil
+}
+
+func getFlags(args []string) []string {
+	rv := make([]string, len(args))
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--") {
+			rv = append(rv, strings.Replace(arg, "--", "", 1))
+		}
+	}
+	return rv
 }
